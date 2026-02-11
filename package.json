@@ -1,0 +1,9 @@
+{
+  "name": "ton-deposit-checker",
+  "version": "1.0.0",
+  "main": "checkDeposits.js",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "firebase-admin": "^11.11.0"
+  }
+}
