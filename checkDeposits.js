@@ -10,10 +10,25 @@ admin.initializeApp({
 
 const db = admin.database();
 
+async function sendTelegram(userId, text) {
+  try {
+    await axios.post(
+      `https://api.telegram.org/bot${process.env.BOT_TOKEN}/sendMessage`,
+      {
+        chat_id: userId,
+        text: text,
+        parse_mode: "HTML",
+        disable_web_page_preview: false
+      }
+    );
+  } catch (err) {
+    console.log("Telegram send error:", err.response?.data || err.message);
+  }
+}
+
 async function checkDeposits() {
   try {
     console.log("Starting deposit check...");
-    console.log("Wallet:", process.env.WALLET_ADDRESS);
 
     const res = await axios.get(
       `https://tonapi.io/v2/blockchain/accounts/${process.env.WALLET_ADDRESS.trim()}/transactions`,
@@ -35,16 +50,12 @@ async function checkDeposits() {
         tx.in_msg.decoded_body?.text?.trim() ||
         null;
 
-      console.log("Decoded Comment:", comment);
-
       if (!comment) continue;
 
       const amount = Number(tx.in_msg.value) / 1e9;
       const hash = tx.hash;
 
       if (/^\d+$/.test(comment)) {
-
-        console.log("Matched numeric comment:", comment);
 
         const processedRef = db.ref("processed/" + hash);
         const processedSnap = await processedRef.get();
@@ -56,25 +67,27 @@ async function checkDeposits() {
 
           if (userSnap.exists()) {
 
-            const currentBalance = userSnap.val().balance || 0;
+            const currentBalance = userSnap.val().tonBalance || 0;
 
             await userRef.update({
-              balance: currentBalance + amount
+              tonBalance: currentBalance + amount
             });
 
             await processedRef.set(true);
 
+            const txLink = `https://tonviewer.com/transaction/${hash}`;
+
+            await sendTelegram(
+              comment,
+              `✅ <b>تم استلام إيداع جديد</b>\n\n` +
+              `💰 القيمة: <b>${amount} TON</b>\n` +
+              `🆔 المعاملة:\n<code>${hash}</code>\n\n` +
+              `🔗 <a href="${txLink}">عرض المعاملة</a>`
+            );
+
             console.log(`Added ${amount} TON to user ${comment}`);
-          } else {
-            console.log("User not found in Firebase:", comment);
           }
-
-        } else {
-          console.log("Transaction already processed:", hash);
         }
-
-      } else {
-        console.log("Comment is NOT numeric:", comment);
       }
     }
 
@@ -82,12 +95,7 @@ async function checkDeposits() {
     process.exit(0);
 
   } catch (error) {
-    console.log("===== FULL ERROR RESPONSE =====");
-    console.log("Status:", error.response?.status);
-    console.log("Data:");
-    console.log(JSON.stringify(error.response?.data, null, 2));
-    console.log("Message:", error.message);
-    console.log("================================");
+    console.log("Error:", error.response?.data || error.message);
     process.exit(1);
   }
 }
