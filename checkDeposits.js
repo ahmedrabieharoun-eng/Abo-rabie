@@ -1,6 +1,7 @@
 const axios = require("axios");
 const admin = require("firebase-admin");
 
+// تحميل بيانات Firebase من Secrets
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
 admin.initializeApp({
@@ -12,18 +13,23 @@ const db = admin.database();
 
 async function checkDeposits() {
   try {
-
     console.log("Starting deposit check...");
 
     const res = await axios.get(
-      `https://toncenter.com/api/v2/getTransactions?address=${process.env.WALLET_ADDRESS}&limit=30`,
+      "https://toncenter.com/api/v3/transactions",
       {
-        headers: { "X-API-Key": process.env.TON_API_KEY },
-        timeout: 15000
+        headers: {
+          "X-API-Key": process.env.TON_API_KEY
+        },
+        params: {
+          account: process.env.WALLET_ADDRESS.trim(),
+          limit: 30
+        },
+        timeout: 20000
       }
     );
 
-    const transactions = res.data.result;
+    const transactions = res.data.transactions || [];
 
     console.log("Transactions fetched:", transactions.length);
 
@@ -31,12 +37,16 @@ async function checkDeposits() {
 
       if (!tx.in_msg) continue;
 
-      const comment = tx.in_msg.message ? tx.in_msg.message.trim() : null;
-      const amount = tx.in_msg.value / 1e9;
-      const hash = tx.transaction_id.hash;
+      const comment = tx.in_msg.message
+        ? tx.in_msg.message.trim()
+        : null;
+
+      const amount = Number(tx.in_msg.value) / 1e9;
+      const hash = tx.hash;
 
       if (!comment) continue;
 
+      // لو الكومنت رقم فقط
       if (/^\d+$/.test(comment)) {
 
         const processedRef = db.ref("processed/" + hash);
@@ -58,17 +68,20 @@ async function checkDeposits() {
             await processedRef.set(true);
 
             console.log(`Added ${amount} TON to user ${comment}`);
+          } else {
+            console.log("User not found:", comment);
           }
+        } else {
+          console.log("Transaction already processed:", hash);
         }
       }
     }
 
     console.log("Deposit check completed.");
-
     process.exit(0);
 
   } catch (error) {
-    console.error("Error:", error.message);
+    console.error("Error:", error.response?.data || error.message);
     process.exit(1);
   }
 }
