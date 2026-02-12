@@ -3,7 +3,8 @@ name: TON Deposit Checker
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/3 * * * *"
+- cron: "* * * * *"
+
 
 jobs:
   run-script:
