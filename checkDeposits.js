@@ -1,4 +1,3 @@
-
 const axios = require("axios");
 const admin = require("firebase-admin");
 
@@ -14,25 +13,19 @@ const db = admin.database();
 async function checkDeposits() {
   try {
 
-    const lastLtRef = db.ref("system/last_lt");
-    const lastLtSnap = await lastLtRef.get();
-    const lastLt = lastLtSnap.exists() ? lastLtSnap.val() : null;
+    console.log("Starting deposit check...");
 
-    let url = `https://toncenter.com/api/v2/getTransactions?address=${process.env.WALLET_ADDRESS}&limit=50`;
-    if (lastLt) {
-      url += `&lt=${lastLt}`;
-    }
-
-    const res = await axios.get(url, {
-      headers: { "X-API-Key": process.env.TON_API_KEY }
-    });
+    const res = await axios.get(
+      `https://toncenter.com/api/v2/getTransactions?address=${process.env.WALLET_ADDRESS}&limit=30`,
+      {
+        headers: { "X-API-Key": process.env.TON_API_KEY },
+        timeout: 15000
+      }
+    );
 
     const transactions = res.data.result;
 
-    if (transactions.length === 0) {
-      console.log("No new transactions");
-      return;
-    }
+    console.log("Transactions fetched:", transactions.length);
 
     for (let tx of transactions) {
 
@@ -41,7 +34,6 @@ async function checkDeposits() {
       const comment = tx.in_msg.message ? tx.in_msg.message.trim() : null;
       const amount = tx.in_msg.value / 1e9;
       const hash = tx.transaction_id.hash;
-      const lt = tx.transaction_id.lt;
 
       if (!comment) continue;
 
@@ -69,12 +61,15 @@ async function checkDeposits() {
           }
         }
       }
-
-      await lastLtRef.set(lt);
     }
+
+    console.log("Deposit check completed.");
+
+    process.exit(0);
 
   } catch (error) {
     console.error("Error:", error.message);
+    process.exit(1);
   }
 }
 
