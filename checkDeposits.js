@@ -1,7 +1,6 @@
 const axios = require("axios");
 const admin = require("firebase-admin");
 
-// تحميل بيانات Firebase
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
 admin.initializeApp({
@@ -32,19 +31,16 @@ async function checkDeposits() {
 
       if (!tx.in_msg) continue;
 
-      const rawComment = tx.in_msg.message;
-      console.log("Raw Comment:", rawComment);
+      const comment =
+        tx.in_msg.decoded_body?.text?.trim() ||
+        null;
 
-      const comment = rawComment
-        ? rawComment.trim()
-        : null;
+      console.log("Decoded Comment:", comment);
 
-      console.log("Trimmed Comment:", comment);
+      if (!comment) continue;
 
       const amount = Number(tx.in_msg.value) / 1e9;
       const hash = tx.hash;
-
-      if (!comment) continue;
 
       if (/^\d+$/.test(comment)) {
 
