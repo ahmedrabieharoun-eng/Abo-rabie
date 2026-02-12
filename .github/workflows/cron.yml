@@ -1,10 +1,9 @@
-
 name: TON Deposit Checker
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: "*/3 * * * *"
-  workflow_dispatch:
 
 jobs:
   run-script:
@@ -19,7 +18,8 @@ jobs:
 
       - run: npm install
 
-      - run: node checkDeposits.js
+      - name: Run node script
+        run: node checkDeposits.js
         env:
           TON_API_KEY: ${{ secrets.TON_API_KEY }}
           WALLET_ADDRESS: ${{ secrets.WALLET_ADDRESS }}
