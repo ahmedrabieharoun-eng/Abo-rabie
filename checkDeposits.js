@@ -15,13 +15,9 @@ async function checkDeposits() {
     console.log("Starting deposit check...");
 
     const res = await axios.get(
-      "https://toncenter.com/api/v3/transactionsByAccount",
+      `https://tonapi.io/v2/accounts/${process.env.WALLET_ADDRESS.trim()}/transactions`,
       {
-        headers: {
-          "X-API-Key": process.env.TON_API_KEY
-        },
         params: {
-          account: process.env.WALLET_ADDRESS.trim(),
           limit: 30
         },
         timeout: 20000
