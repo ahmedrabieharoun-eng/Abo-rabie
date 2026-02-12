@@ -1,7 +1,6 @@
 const axios = require("axios");
 const admin = require("firebase-admin");
 
-// تحميل بيانات Firebase من Secrets
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
 admin.initializeApp({
@@ -16,7 +15,7 @@ async function checkDeposits() {
     console.log("Starting deposit check...");
 
     const res = await axios.get(
-      "https://toncenter.com/api/v3/transactions",
+      "https://toncenter.com/api/v3/transactionsByAccount",
       {
         headers: {
           "X-API-Key": process.env.TON_API_KEY
@@ -46,7 +45,6 @@ async function checkDeposits() {
 
       if (!comment) continue;
 
-      // لو الكومنت رقم فقط
       if (/^\d+$/.test(comment)) {
 
         const processedRef = db.ref("processed/" + hash);
@@ -68,11 +66,7 @@ async function checkDeposits() {
             await processedRef.set(true);
 
             console.log(`Added ${amount} TON to user ${comment}`);
-          } else {
-            console.log("User not found:", comment);
           }
-        } else {
-          console.log("Transaction already processed:", hash);
         }
       }
     }
