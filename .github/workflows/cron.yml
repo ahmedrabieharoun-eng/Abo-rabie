@@ -21,7 +21,7 @@ jobs:
       - name: Run node script
         run: node checkDeposits.js
         env:
-          TON_API_KEY: ${{ secrets.TON_API_KEY }}
           WALLET_ADDRESS: ${{ secrets.WALLET_ADDRESS }}
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           FIREBASE_DB_URL: ${{ secrets.FIREBASE_DB_URL }}
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
