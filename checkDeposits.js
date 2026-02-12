@@ -1,7 +1,7 @@
 const axios = require("axios");
 const admin = require("firebase-admin");
 
-// تحميل بيانات Firebase
+// تحميل بيانات Firebase من Secrets
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
 admin.initializeApp({
@@ -17,7 +17,7 @@ async function checkDeposits() {
     console.log("Wallet:", process.env.WALLET_ADDRESS);
 
     const res = await axios.get(
-      `https://tonapi.io/v2/accounts/${process.env.WALLET_ADDRESS.trim()}/transactions`,
+      `https://tonapi.io/v2/blockchain/accounts/${process.env.WALLET_ADDRESS.trim()}/transactions`,
       {
         params: {
           limit: 30
@@ -43,6 +43,7 @@ async function checkDeposits() {
 
       if (!comment) continue;
 
+      // لو الكومنت رقم فقط
       if (/^\d+$/.test(comment)) {
 
         const processedRef = db.ref("processed/" + hash);
@@ -67,6 +68,7 @@ async function checkDeposits() {
           } else {
             console.log("User not found:", comment);
           }
+
         } else {
           console.log("Transaction already processed:", hash);
         }
