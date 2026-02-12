@@ -1,7 +1,7 @@
 const axios = require("axios");
 const admin = require("firebase-admin");
 
-// تحميل بيانات Firebase من Secrets
+// تحميل بيانات Firebase
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
 admin.initializeApp({
@@ -19,9 +19,7 @@ async function checkDeposits() {
     const res = await axios.get(
       `https://tonapi.io/v2/blockchain/accounts/${process.env.WALLET_ADDRESS.trim()}/transactions`,
       {
-        params: {
-          limit: 30
-        },
+        params: { limit: 30 },
         timeout: 20000
       }
     );
@@ -34,17 +32,23 @@ async function checkDeposits() {
 
       if (!tx.in_msg) continue;
 
-      const comment = tx.in_msg.message
-        ? tx.in_msg.message.trim()
+      const rawComment = tx.in_msg.message;
+      console.log("Raw Comment:", rawComment);
+
+      const comment = rawComment
+        ? rawComment.trim()
         : null;
+
+      console.log("Trimmed Comment:", comment);
 
       const amount = Number(tx.in_msg.value) / 1e9;
       const hash = tx.hash;
 
       if (!comment) continue;
 
-      // لو الكومنت رقم فقط
       if (/^\d+$/.test(comment)) {
+
+        console.log("Matched numeric comment:", comment);
 
         const processedRef = db.ref("processed/" + hash);
         const processedSnap = await processedRef.get();
@@ -66,12 +70,15 @@ async function checkDeposits() {
 
             console.log(`Added ${amount} TON to user ${comment}`);
           } else {
-            console.log("User not found:", comment);
+            console.log("User not found in Firebase:", comment);
           }
 
         } else {
           console.log("Transaction already processed:", hash);
         }
+
+      } else {
+        console.log("Comment is NOT numeric:", comment);
       }
     }
 
@@ -79,14 +86,12 @@ async function checkDeposits() {
     process.exit(0);
 
   } catch (error) {
-
     console.log("===== FULL ERROR RESPONSE =====");
     console.log("Status:", error.response?.status);
     console.log("Data:");
     console.log(JSON.stringify(error.response?.data, null, 2));
     console.log("Message:", error.message);
     console.log("================================");
-
     process.exit(1);
   }
 }
