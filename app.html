@@ -6,6 +6,7 @@
 <title>دليفري رايد — اطلب أونلاين</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root{
   --ink:#101013; --ink2:#1B1B21; --orange:#FF7A00; --orange2:#FF9E2C;
@@ -103,6 +104,9 @@ img{display:block;max-width:100%}
 .field .err{border-color:var(--red) !important;background:#FFF6F5 !important}
 .loc-btn{width:100%;padding:12px;border-radius:13px;border:1.5px dashed #C9C4B8;background:#FFFBF2;font-weight:700;font-size:14px;color:#8A5A00;display:flex;align-items:center;justify-content:center;gap:8px}
 .loc-btn.ok{border-style:solid;border-color:#BFE8D6;background:#EFFAF4;color:#0B6B4A}
+#dropMap{height:230px;border-radius:14px;border:1.5px solid var(--line);z-index:1;background:#E8E6E0}
+.geo-hint{font-size:12.5px;color:var(--muted);margin-top:7px;line-height:1.6}
+.geo-hint b{color:#0B6B4A}
 .big-btn{width:100%;background:var(--grad);color:#fff;font-weight:700;font-size:16.5px;padding:15px;border-radius:15px;box-shadow:0 12px 24px -10px rgba(255,94,0,.65);transition:.15s}
 .big-btn:active{transform:scale(.98)}
 .big-btn:disabled{opacity:.55;box-shadow:none}
@@ -288,8 +292,13 @@ td img{width:44px;height:44px;border-radius:10px;object-fit:cover;background:#22
 
     <div class="field"><label>الاسم *</label><input id="cName" type="text" placeholder="اسمك بالكامل" autocomplete="name"></div>
     <div class="field"><label>رقم الموبايل *</label><input id="cPhone" type="tel" placeholder="01xxxxxxxxx" autocomplete="tel" dir="ltr" style="text-align:right"></div>
-    <div class="field"><label>عنوان التوصيل بالتفصيل *</label><textarea id="cAddress" rows="2" placeholder="الشارع، رقم العمارة، الدور، علامة مميزة…"></textarea></div>
-    <button class="loc-btn" id="locBtn" type="button" onclick="useMyLocation()">📍 استخدم موقعي الحالي (لحساب الرسوم بدقة)</button>
+    <div class="field">
+      <label>📍 نقطة التسليم — حدّدها على الخريطة</label>
+      <div id="dropMap"></div>
+      <div class="geo-hint" id="geoHint">دوس على الخريطة أو حرّك الدبوس لمكان التسليم بالظبط، أو استخدم زرار الـ GPS. رسوم التوصيل بتتحسب من النقطة دي.</div>
+    </div>
+    <button class="loc-btn" id="locBtn" type="button" onclick="useMyLocation()">📍 حدّد موقعي الحالي (GPS)</button>
+    <div class="field" style="margin-top:12px"><label>تفاصيل العنوان (عمارة، دور، علامة مميزة)</label><textarea id="cAddress" rows="2" placeholder="مثال: عمارة 5، الدور الثالث، بجوار مسجد…"></textarea></div>
     <div class="field" style="margin-top:12px"><label>ملاحظات (اختياري)</label><input id="cNotes" type="text" placeholder="أي تفاصيل إضافية للسائق"></div>
 
     <button class="big-btn" id="placeBtn" onclick="placeOrder()">✅ تأكيد الطلب — الدفع كاش عند الاستلام</button>
@@ -301,6 +310,7 @@ td img{width:44px;height:44px;border-radius:10px;object-fit:cover;background:#22
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 'use strict';
 /* ═══════════ Delivery Ride — Storefront (single file, no auth) ═══════════
@@ -336,7 +346,7 @@ let toastTimer = null;
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 3400); }
 
 /* ── Settings ── */
-const DEFAULT_SETTINGS = { storeName: 'مطعم دليفري رايد', storeAddress: 'شبرا الخيمة، القليوبية', storeLat: 30.1286, storeLng: 31.2422, baseFee: 15, perKm: 5, minFee: 15 };
+const DEFAULT_SETTINGS = { storeName: 'مطعم دليفري رايد', storeAddress: 'شارع عبد المنعم عبد الهادي، بجوار صيدلية العراقي، شبرا الخيمة، القليوبية', storeLat: 30.128308, storeLng: 31.280221, baseFee: 15, perKm: 5, minFee: 15 };
 let S = { ...DEFAULT_SETTINGS };
 function deliveryFee(distanceKm) {
   if (!distanceKm || distanceKm <= 0) return num(S.minFee);
@@ -441,21 +451,68 @@ function renderCartItems() {
   const total = cartTotal();
   $('totalsBox').innerHTML = `
     <div class="row"><span>إجمالي الأصناف</span><b>${fmt(total)} ج.م</b></div>
-    <div class="row"><span>رسوم التوصيل ${dropCoords ? '(مسافة ' + currentDistance().toFixed(1) + ' كم)' : '(بالحد الأدنى — حدّد موقعك للدقة)'}</span><b>${fmt(fee)} ج.م</b></div>
+    <div class="row"><span>رسوم التوصيل ${dropCoords ? '(مسافة ' + currentDistance().toFixed(1) + ' كم)' : '(بالحد الأدنى — حدّد نقطة التسليم على الخريطة للدقة)'}</span><b>${fmt(fee)} ج.م</b></div>
     <div class="row grand"><span>الإجمالي — يُدفع كاش عند الاستلام</span><span>${fmt(total + fee)} ج.م</span></div>`;
 }
-function openCart() { renderCartItems(); $('cartOverlay').classList.add('show'); }
+function openCart() {
+  renderCartItems();
+  $('cartOverlay').classList.add('show');
+  setTimeout(initDropMap, 80);
+  // إن كان إذن الموقع ممنوحًا من قبل، حدّد نقطة التسليم تلقائيًا
+  if (!dropCoords && navigator.permissions && navigator.geolocation) {
+    navigator.permissions.query({ name: 'geolocation' }).then(p => { if (p.state === 'granted') useMyLocation(); }).catch(() => {});
+  }
+}
 function closeCart() { $('cartOverlay').classList.remove('show'); }
+
+/* ── Delivery-point map: pin / GPS + reverse-geocoded address ── */
+let dropMap = null, dropMarker = null, geoText = '', geoSeq = 0;
+function setDropPoint(lat, lng) {
+  dropCoords = { lat: Math.round(lat * 1e6) / 1e6, lng: Math.round(lng * 1e6) / 1e6 };
+  if (dropMap && window.L) {
+    if (dropMarker) dropMarker.setLatLng([lat, lng]);
+    else {
+      dropMarker = L.marker([lat, lng], { draggable: true }).addTo(dropMap);
+      dropMarker.on('dragend', () => { const p = dropMarker.getLatLng(); setDropPoint(p.lat, p.lng); });
+    }
+  }
+  $('geoHint').innerHTML = '✅ <b>نقطة التسليم اتحددت</b> — المسافة من المطعم ' + currentDistance().toFixed(1) + ' كم. جارٍ جلب العنوان…';
+  renderCartItems();
+  reverseGeocode(lat, lng);
+}
+async function reverseGeocode(lat, lng) {
+  const seq = ++geoSeq;
+  try {
+    const r = await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=' + lat + '&lon=' + lng + '&accept-language=ar&zoom=18');
+    const j = await r.json();
+    if (seq !== geoSeq || !j) return;
+    const a = j.address || {};
+    const parts = [a.road, a.neighbourhood || a.suburb || a.quarter, a.city || a.town || a.village || a.state].filter(Boolean);
+    geoText = parts.length ? [...new Set(parts)].join('، ') : (j.display_name || '').split('،').slice(0, 3).join('،');
+    if (geoText) $('geoHint').innerHTML = '✅ <b>نقطة التسليم اتحددت</b> — ' + esc(geoText) + ' · المسافة ' + currentDistance().toFixed(1) + ' كم';
+  } catch (_) { /* العنوان النصي يكفي */ }
+}
+function initDropMap() {
+  if (!window.L) return; // Leaflet CDN failed → GPS button still works
+  if (dropMap) { setTimeout(() => dropMap.invalidateSize(), 80); return; }
+  const c = [num(S.storeLat), num(S.storeLng)];
+  dropMap = L.map('dropMap').setView(dropCoords ? [dropCoords.lat, dropCoords.lng] : c, 14);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(dropMap);
+  L.marker(c).addTo(dropMap).bindPopup('🏪 ' + esc(S.storeName) + ' — نقطة الاستلام');
+  dropMap.on('click', e => setDropPoint(e.latlng.lat, e.latlng.lng));
+  if (dropCoords) setDropPoint(dropCoords.lat, dropCoords.lng);
+  setTimeout(() => dropMap.invalidateSize(), 80);
+}
 function useMyLocation() {
   const btn = $('locBtn');
-  if (!navigator.geolocation) { toast('المتصفح لا يدعم تحديد الموقع'); return; }
+  if (!navigator.geolocation) { toast('المتصفح لا يدعم تحديد الموقع — حدّد النقطة على الخريطة'); return; }
   btn.textContent = '⏳ جارٍ تحديد موقعك…';
   navigator.geolocation.getCurrentPosition(pos => {
-    dropCoords = { lat: Math.round(pos.coords.latitude * 1e6) / 1e6, lng: Math.round(pos.coords.longitude * 1e6) / 1e6 };
+    setDropPoint(pos.coords.latitude, pos.coords.longitude);
+    if (dropMap) dropMap.flyTo([pos.coords.latitude, pos.coords.longitude], 16);
     btn.classList.add('ok');
-    btn.textContent = '✅ تم تحديد موقعك — رسوم التوصيل اتحسبت بالمسافة الفعلية';
-    renderCartItems();
-  }, () => { btn.textContent = '📍 استخدم موقعي الحالي (لحساب الرسوم بدقة)'; toast('معرفناش نوصل لموقعك — كمّل بالعنوان النصي ورسوم الحد الأدنى'); },
+    btn.textContent = '✅ تم تحديد موقعك على الخريطة';
+  }, () => { btn.textContent = '📍 حدّد موقعي الحالي (GPS)'; toast('معرفناش نوصل لموقعك — حدّد النقطة يدويًا على الخريطة'); },
   { enableHighAccuracy: true, timeout: 12000 });
 }
 
@@ -486,19 +543,22 @@ async function buildDispatchQueue(pickup) {
         activeCount[o.assignedDriverId] = (activeCount[o.assignedDriverId] || 0) + 1;
       }
     });
-    const scored = [];
+    const waiting = [];
     Object.entries(drivers).forEach(([uid, d]) => {
       if (!d || (d.profile && d.profile.isActive === false)) return;
       if (driverWorkStatus(uid, d, activeByDriver) !== 'available') return;
       const loc = d.liveLocation || {};
-      const hasLoc = num(loc.latitude) !== 0 && num(loc.longitude) !== 0 && loc.latitude != null && loc.longitude != null;
-      const dist = hasLoc && pickup ? haversine(pickup.lat, pickup.lng, num(loc.latitude), num(loc.longitude)) : null;
       const t = parseDate(loc.updatedAt);
       const age = t ? Math.max(0, Math.round((Date.now() - t.getTime()) / 1000)) : null;
-      const score = (dist === null ? 500 : dist) + (age === null ? 300 : Math.min(age, 300) / 10) + (activeCount[uid] || 0) * 10;
-      scored.push({ uid, score });
+      // المنتظر يجب أن يكون فاتحاً الآن فعلاً: موقع أقدم من 3 دقائق
+      // يعني تطبيقاً مغلقاً أو إشارة ميتة — يُستبعد من الطابور.
+      if (age === null || age > 180) return;
+      const since = parseDate(loc.availableSince);
+      waiting.push({ uid, waitSince: since ? since.getTime() : Number.POSITIVE_INFINITY });
     });
-    return scored.sort((a, b) => a.score - b.score).map(x => x.uid);
+    // الأقدم انتظاراً أولاً (FIFO): ختم availableSince الأقدم يتصدر
+    // الطابور، وبلا ختم (تطبيق قديم) = آخر الطابور.
+    return waiting.sort((a, b) => (a.waitSince - b.waitSince) || (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0)).map(x => x.uid);
   } catch (e) { console.warn('queue build failed', e); return []; }
 }
 
@@ -546,8 +606,8 @@ async function placeOrder() {
   let ok = true;
   if (!name.value.trim()) { name.classList.add('err'); ok = false; }
   if (!/^[0-9+\s]{10,15}$/.test(phone.value.trim())) { phone.classList.add('err'); ok = false; }
-  if (addr.value.trim().length < 8) { addr.classList.add('err'); ok = false; }
-  if (!ok) { toast('راجع البيانات المطلوبة (الاسم، موبايل صحيح، عنوان واضح)'); return; }
+  if (!dropCoords && addr.value.trim().length < 8) { addr.classList.add('err'); ok = false; }
+  if (!ok) { toast('راجع البيانات: الاسم، موبايل صحيح، وحدّد نقطة التسليم على الخريطة أو اكتب عنوانًا واضحًا'); return; }
   if (!db) { toast('لا يوجد اتصال بقاعدة البيانات دلوقتي — حاول تاني'); return; }
   const btn = $('placeBtn');
   btn.disabled = true; btn.textContent = '⏳ جارٍ إرسال الطلب للسائقين…';
@@ -555,8 +615,10 @@ async function placeOrder() {
     const distanceKm = currentDistance();
     const fee = deliveryFee(distanceKm);
     const queue = await buildDispatchQueue({ lat: num(S.storeLat), lng: num(S.storeLng) });
+    const details = addr.value.trim();
+    const finalAddress = dropCoords && geoText ? (details ? geoText + ' — ' + details : geoText) : details;
     const payload = buildOrderPayload({
-      name: name.value.trim(), phone: phone.value.trim(), address: addr.value.trim(),
+      name: name.value.trim(), phone: phone.value.trim(), address: finalAddress,
       notes: $('cNotes').value.trim(), items, itemsTotal: cartTotal(),
       fee, distanceKm, dropCoords, queue,
     });
