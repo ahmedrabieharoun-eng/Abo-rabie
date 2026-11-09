@@ -256,7 +256,7 @@ td img{width:44px;height:44px;border-radius:10px;object-fit:cover;background:#22
       <h3>🏪 إعدادات المتجر والتوصيل</h3>
       <div class="f-row">
         <div class="field"><label>اسم المتجر (يظهر للسائق كمكان الاستلام)</label><input id="sName" type="text"></div>
-        <div class="field"><label>عنوان الاستلام</label><input id="sAddress" type="text"></div>
+        <div class="field"><label>عنوان المطعم (مكان الاستلام)</label><input id="sAddress" type="text"></div>
       </div>
       <div class="f-row">
         <div class="field"><label>إحداثيات المتجر — خط العرض (lat)</label><input id="sLat" type="number" step="any"></div>
@@ -292,8 +292,14 @@ td img{width:44px;height:44px;border-radius:10px;object-fit:cover;background:#22
 
     <div class="field"><label>الاسم *</label><input id="cName" type="text" placeholder="اسمك بالكامل" autocomplete="name"></div>
     <div class="field"><label>رقم الموبايل *</label><input id="cPhone" type="tel" placeholder="01xxxxxxxxx" autocomplete="tel" dir="ltr" style="text-align:right"></div>
+    <div class="field" style="background:#F4F1FE;border:1.5px solid #D9CFF7;border-radius:12px;padding:10px 12px">
+      <label style="margin-bottom:4px">🏪 مكان الاستلام — المطعم (نقطة ثابتة)</label>
+      <div style="font-weight:800" id="pickupName"></div>
+      <div style="font-size:13px;color:var(--muted)" id="pickupAddr"></div>
+      <div style="font-size:12px;color:var(--muted);margin-top:3px">السائق بيستلم طلبك من المطعم ده، والتسليم عندك انت — حدّد مكانك على الخريطة اللي تحت.</div>
+    </div>
     <div class="field">
-      <label>📍 نقطة التسليم — حدّدها على الخريطة</label>
+      <label>📍 نقطة التسليم — مكانك انت، حدّده على الخريطة</label>
       <div id="dropMap"></div>
       <div class="geo-hint" id="geoHint">دوس على الخريطة أو حرّك الدبوس لمكان التسليم بالظبط، أو استخدم زرار الـ GPS. رسوم التوصيل بتتحسب من النقطة دي.</div>
     </div>
@@ -346,7 +352,7 @@ let toastTimer = null;
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 3400); }
 
 /* ── Settings ── */
-const DEFAULT_SETTINGS = { storeName: 'مطعم دليفري رايد', storeAddress: 'شارع عبد المنعم عبد الهادي، بجوار صيدلية العراقي، شبرا الخيمة، القليوبية', storeLat: 30.128308, storeLng: 31.280221, baseFee: 15, perKm: 5, minFee: 15 };
+const DEFAULT_SETTINGS = { storeName: 'مطعم دليفري رايد', storeAddress: 'شارع حسن علام، عرب الحصن، شبرا الخيمة، القليوبية', storeLat: 30.125883, storeLng: 31.281391, baseFee: 15, perKm: 5, minFee: 15 };
 let S = { ...DEFAULT_SETTINGS };
 function deliveryFee(distanceKm) {
   if (!distanceKm || distanceKm <= 0) return num(S.minFee);
@@ -466,7 +472,7 @@ function openCart() {
 function closeCart() { $('cartOverlay').classList.remove('show'); }
 
 /* ── Delivery-point map: pin / GPS + reverse-geocoded address ── */
-let dropMap = null, dropMarker = null, geoText = '', geoSeq = 0;
+let dropMap = null, dropMarker = null, dropLine = null, geoText = '', geoSeq = 0;
 function setDropPoint(lat, lng) {
   dropCoords = { lat: Math.round(lat * 1e6) / 1e6, lng: Math.round(lng * 1e6) / 1e6 };
   if (dropMap && window.L) {
@@ -475,6 +481,11 @@ function setDropPoint(lat, lng) {
       dropMarker = L.marker([lat, lng], { draggable: true }).addTo(dropMap);
       dropMarker.on('dragend', () => { const p = dropMarker.getLatLng(); setDropPoint(p.lat, p.lng); });
     }
+    try {
+      const pts = [[num(S.storeLat), num(S.storeLng)], [lat, lng]];
+      if (dropLine) dropLine.setLatLngs(pts);
+      else dropLine = L.polyline(pts, { color: '#7B5CD6', weight: 3, dashArray: '6 6', opacity: 0.85 }).addTo(dropMap);
+    } catch (_) { /* خط المسار تجميلي فقط */ }
   }
   $('geoHint').innerHTML = '✅ <b>نقطة التسليم اتحددت</b> — المسافة من المطعم ' + currentDistance().toFixed(1) + ' كم. جارٍ جلب العنوان…';
   renderCartItems();
@@ -594,7 +605,7 @@ function buildOrderPayload(o) {
     dispatchRound: 1,
     dispatchTried: [],
     dispatchDriverId: null,
-    dispatchWindowSeconds: 30,
+    dispatchWindowSeconds: 120,
     dispatchOfferedAt: null,
     dispatchExpiresAt: null,
   };
@@ -701,7 +712,7 @@ function renderStoreOrders() {
 }
 
 /* ── Dispatch watchdog (mirror of the dashboard) ── */
-function dispatchWindowForRound(r) { r = Math.max(1, parseInt(r) || 1); return Math.min(30 + (r - 1) * 15, 90); }
+function dispatchWindowForRound(r) { r = Math.max(1, parseInt(r) || 1); return 120; }
 function advanceDispatch(orderId) {
   db.ref('orders/' + orderId).transaction(cur => {
     if (!cur || cur.status !== 'available') return cur;
@@ -794,6 +805,9 @@ function applySettings() {
   $('brandName').textContent = 'دليفري رايد';
   $('heroName').textContent = S.storeName;
   $('heroSub').textContent = 'توصيل سريع من ' + S.storeAddress + ' لباب البيت — والدفع كاش عند الاستلام';
+  const pn = $('pickupName'), pa = $('pickupAddr');
+  if (pn) pn.textContent = S.storeName;
+  if (pa) pa.textContent = S.storeAddress;
   $('chipFee').textContent = '🚀 التوصيل يبدأ من ' + fmt(S.minFee) + ' ج.م';
 }
 async function saveSettings() {
