@@ -583,6 +583,8 @@ function buildOrderPayload(o) {
     notes: o.notes || null,
     source: 'website',
     status: 'available',
+    prepStatus: 'preparing',
+    branchId: S.branchId || null,
     assignedDriverId: null,
     currentStepIndex: 0,
     createdBy: 'website',
@@ -591,10 +593,10 @@ function buildOrderPayload(o) {
     dispatchIndex: 0,
     dispatchRound: 1,
     dispatchTried: [],
-    dispatchDriverId: queue.length ? queue[0] : null,
+    dispatchDriverId: null,
     dispatchWindowSeconds: 30,
-    dispatchOfferedAt: now,
-    dispatchExpiresAt: queue.length ? new Date(Date.now() + 30000).toISOString() : null,
+    dispatchOfferedAt: null,
+    dispatchExpiresAt: null,
   };
 }
 
@@ -610,7 +612,7 @@ async function placeOrder() {
   if (!ok) { toast('راجع البيانات: الاسم، موبايل صحيح، وحدّد نقطة التسليم على الخريطة أو اكتب عنوانًا واضحًا'); return; }
   if (!db) { toast('لا يوجد اتصال بقاعدة البيانات دلوقتي — حاول تاني'); return; }
   const btn = $('placeBtn');
-  btn.disabled = true; btn.textContent = '⏳ جارٍ إرسال الطلب للسائقين…';
+  btn.disabled = true; btn.textContent = '⏳ جارٍ إرسال الطلب للمطعم…';
   try {
     const distanceKm = currentDistance();
     const fee = deliveryFee(distanceKm);
@@ -815,6 +817,10 @@ if (db) {
   db.ref('storefront/settings').on('value', snap => {
     if (snap.val()) S = { ...DEFAULT_SETTINGS, ...snap.val() };
     applySettings(); fillSettingsForm();
+  });
+  db.ref('branches').on('value', snap => {
+    const bv = snap.val() || {}; const ids = Object.keys(bv);
+    S.branchId = (ids.find(id => (bv[id] || {}).name === 'الفرع الرئيسي') || ids[0] || null);
   });
   db.ref('products').on('value', snap => {
     const v = snap.val() || {};
