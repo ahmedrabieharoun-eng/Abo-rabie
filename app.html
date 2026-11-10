@@ -255,12 +255,12 @@ td img{width:44px;height:44px;border-radius:10px;object-fit:cover;background:#22
     <div class="form-card">
       <h3>🏪 إعدادات المتجر والتوصيل</h3>
       <div class="f-row">
-        <div class="field"><label>اسم المتجر (يظهر للسائق كمكان الاستلام)</label><input id="sName" type="text"></div>
-        <div class="field"><label>عنوان المطعم (مكان الاستلام)</label><input id="sAddress" type="text"></div>
+        <div class="field"><label>اسم المتجر (يظهر للسائق كمكان الاستلام)</label><input id="sName" disabled type="text"></div>
+        <div class="field"><label>عنوان المطعم (مكان الاستلام)</label><input id="sAddress" disabled type="text"></div>
       </div>
       <div class="f-row">
-        <div class="field"><label>إحداثيات المتجر — خط العرض (lat)</label><input id="sLat" type="number" step="any"></div>
-        <div class="field"><label>إحداثيات المتجر — خط الطول (lng)</label><input id="sLng" type="number" step="any"></div>
+        <div class="field"><label>إحداثيات المتجر — خط العرض (lat)</label><input id="sLat" disabled type="number" step="any"></div>
+        <div class="field"><label>إحداثيات المتجر — خط الطول (lng)</label><input id="sLng" disabled type="number" step="any"></div>
       </div>
       <div class="f-row">
         <div class="field"><label>رسوم أساسية (ج.م)</label><input id="sBase" type="number" min="0" step="0.5"></div>
@@ -270,7 +270,7 @@ td img{width:44px;height:44px;border-radius:10px;object-fit:cover;background:#22
         <div class="field"><label>الحد الأدنى لرسوم التوصيل (ج.م)</label><input id="sMin" type="number" min="0" step="0.5"></div>
         <div class="field"><label>&nbsp;</label><button class="big-btn" style="padding:12px" onclick="saveSettings()">💾 حفظ الإعدادات</button></div>
       </div>
-      <div style="font-size:12.5px;color:var(--muted)">رسوم التوصيل = الأساسي + (لكل كم × المسافة)، وبحد أدنى القيمة اللي فوق. الإحداثيات الافتراضية: شبرا الخيمة — عدّلها لمكان متجرك بالظبط عشان المسافات والتوزيع يبقوا صح.</div>
+      <div style="font-size:12.5px;color:var(--muted)">رسوم التوصيل = الأساسي + (لكل كم × المسافة)، وبحد أدنى القيمة اللي فوق. اسم المطعم وعنوانه وموقعه بيتعدّلوا من لوحة التحكم بس (قسم «موقع المطعم») — من هنا الرسوم فقط.</div>
     </div>
   </div>
 </main>
@@ -304,6 +304,8 @@ td img{width:44px;height:44px;border-radius:10px;object-fit:cover;background:#22
       <div class="geo-hint" id="geoHint">دوس على الخريطة أو حرّك الدبوس لمكان التسليم بالظبط، أو استخدم زرار الـ GPS. رسوم التوصيل بتتحسب من النقطة دي.</div>
     </div>
     <button class="loc-btn" id="locBtn" type="button" onclick="useMyLocation()">📍 حدّد موقعي الحالي (GPS)</button>
+    <div class="field" style="margin-top:12px"><label>منطقة التوصيل (بتحدد رسوم التوصيل من لائحة الأسعار)</label><select id="cZoneRegion" onchange="onZoneRegionChange()"><option value="">— اختر المنطقة —</option></select></div>
+    <div class="field" style="margin-top:12px"><label>الحي / الشارع</label><select id="cZoneDistrict" onchange="onZoneDistrictChange()"><option value="">— اختر الحي —</option></select></div>
     <div class="field" style="margin-top:12px"><label>تفاصيل العنوان (عمارة، دور، علامة مميزة)</label><textarea id="cAddress" rows="2" placeholder="مثال: عمارة 5، الدور الثالث، بجوار مسجد…"></textarea></div>
     <div class="field" style="margin-top:12px"><label>ملاحظات (اختياري)</label><input id="cNotes" type="text" placeholder="أي تفاصيل إضافية للسائق"></div>
 
@@ -358,6 +360,38 @@ function deliveryFee(distanceKm) {
   if (!distanceKm || distanceKm <= 0) return num(S.minFee);
   return Math.max(num(S.minFee), Math.round(num(S.baseFee) + num(S.perKm) * distanceKm));
 }
+
+/* ── Zone price list (owner's list — settings/zones, dashboard-managed) ── */
+const DEFAULT_PRICE_ZONES=[{key:'z01',region:'مدينة نصر',name:'امتداد رمسيس',fee:74},{key:'z02',region:'مدينة نصر',name:'الحي السادس',fee:74},{key:'z03',region:'مدينة نصر',name:'الحي السابع',fee:74},{key:'z04',region:'مدينة نصر',name:'الحي الثامن',fee:74},{key:'z05',region:'مدينة نصر',name:'مساكن الشروق',fee:74},{key:'z06',region:'مدينة نصر',name:'شارع الطاقة',fee:74},{key:'z07',region:'مدينة نصر',name:'الحديقة الدولية',fee:74},{key:'z08',region:'مدينة نصر',name:'شارع حسن الشريف',fee:74},{key:'z09',region:'مدينة نصر',name:'احمد فخري',fee:61},{key:'z10',region:'مدينة نصر',name:'حسن المامون',fee:61},{key:'z11',region:'مدينة نصر',name:'عمار ابن ياسر',fee:61},{key:'z12',region:'مدينة نصر',name:'عمارات الزهور صلاح سالم',fee:61},{key:'z13',region:'مدينة نصر',name:'ابوداود الظاهري',fee:61},{key:'z14',region:'مدينة نصر',name:'حسن مأمون',fee:61},{key:'z15',region:'مدينة نصر',name:'النادي الاهلي',fee:61},{key:'z16',region:'مدينة نصر',name:'شارع الازهر',fee:61},{key:'z17',region:'مدينة نصر',name:'طريق النصر',fee:61},{key:'z18',region:'مدينة نصر',name:'عمارات شراره',fee:55},{key:'z19',region:'مدينة نصر',name:'مشروع 27 عماره',fee:55},{key:'z20',region:'مدينة نصر',name:'مشروع 33 عماره',fee:55},{key:'z21',region:'مدينة نصر',name:'شارع الطيران',fee:55},{key:'z22',region:'مدينة نصر',name:'عباس العقاد',fee:55},{key:'z23',region:'مدينة نصر',name:'مكرم عبيد',fee:55},{key:'z24',region:'مدينة نصر',name:'مصطفى النحاس',fee:55},{key:'z25',region:'مدينة نصر',name:'عمارات العبور',fee:55},{key:'z26',region:'مدينة نصر',name:'شارع عبد المنعم حافظ',fee:48},{key:'z27',region:'مدينة نصر',name:'عمارات رابعة الاستثماري',fee:48},{key:'z28',region:'مدينة نصر',name:'شارع لوساكة',fee:48},{key:'z29',region:'مدينة نصر',name:'شارع محمد غنيم',fee:48},{key:'z30',region:'مدينة نصر',name:'الحي الاول',fee:48},{key:'z31',region:'مدينة نصر',name:'شارع هارون الرشيدي',fee:48},{key:'z32',region:'مدينة نصر',name:'شارع علي الجندي',fee:43},{key:'z33',region:'مدينة نصر',name:'سيتي ستارز',fee:43},{key:'z34',region:'مدينة نصر',name:'شارع نبيل الوقاد',fee:43},{key:'z35',region:'مصر الجديده',name:'الشيراتون',fee:74},{key:'z36',region:'مصر الجديده',name:'النزهة الجديده',fee:74},{key:'z37',region:'مصر الجديده',name:'المطار',fee:74},{key:'z38',region:'مصر الجديده',name:'الخليفة المأمون',fee:61},{key:'z39',region:'مصر الجديده',name:'شارع عبدالعزيز فهمي',fee:61},{key:'z40',region:'مصر الجديده',name:'شارع فريد سميكة',fee:61},{key:'z41',region:'مصر الجديده',name:'نادي الشمس',fee:61},{key:'z42',region:'مصر الجديده',name:'الف مسكن',fee:61},{key:'z43',region:'مصر الجديده',name:'عبد الحميد بدوي',fee:61},{key:'z44',region:'مصر الجديده',name:'شارع عثمان ابن عفان',fee:55},{key:'z45',region:'مصر الجديده',name:'ميدان تريومف',fee:55},{key:'z46',region:'مصر الجديده',name:'ميدان المحكمة',fee:55},{key:'z47',region:'مصر الجديده',name:'شارع الحجاز من المحكمة الى ش عبدالحميد بدوي',fee:55},{key:'z48',region:'مصر الجديده',name:'ميدان سانت فاتيما',fee:55},{key:'z49',region:'مصر الجديده',name:'ميدان الحجاز',fee:55},{key:'z50',region:'مصر الجديده',name:'شارع النزهة بداية من تريومف',fee:55},{key:'z51',region:'مصر الجديده',name:'شارع النخلة المطيعي',fee:48},{key:'z52',region:'مصر الجديده',name:'الميريلاند',fee:48},{key:'z53',region:'مصر الجديده',name:'نادي الجلاء',fee:48},{key:'z54',region:'مصر الجديده',name:'شارع محمد فريد',fee:48},{key:'z55',region:'مصر الجديده',name:'الجلاء العسكري ونادي الجلاء',fee:48},{key:'z56',region:'مصر الجديده',name:'عمر ابن الخطاب',fee:48},{key:'z57',region:'مصر الجديده',name:'شارع ابو بكر الصديق من سفير الى المحكمة',fee:48},{key:'z58',region:'مصر الجديده',name:'روكسي',fee:48},{key:'z59',region:'مصر الجديده',name:'هيليوبوليس',fee:48},{key:'z60',region:'مصر الجديده',name:'ميدان الاسماعيلية',fee:48},{key:'z61',region:'مصر الجديده',name:'ميدان سفير',fee:43},{key:'z62',region:'مصر الجديده',name:'الميرغني',fee:43},{key:'z63',region:'مصر الجديده',name:'السبع عمارات',fee:43},{key:'z64',region:'مصر الجديده',name:'شارع العاظه',fee:43},{key:'z65',region:'مصر الجديده',name:'مشروع كليه البنات',fee:43},{key:'z66',region:'مصر الجديده',name:'ارض الجولف',fee:43}];
+let priceZonesMap = null;
+function priceZonesList() {
+  if (priceZonesMap && Object.keys(priceZonesMap).length) {
+    return Object.entries(priceZonesMap).map(([key, z]) => ({ key, region: (z && z.region) || '', name: (z && z.name) || '', fee: num(z && z.fee) })).filter(z => z.name);
+  }
+  return DEFAULT_PRICE_ZONES.slice();
+}
+let selectedZone = null;
+function fillZoneRegions() {
+  const rsel = $('cZoneRegion'); if (!rsel) return;
+  const cur = rsel.value;
+  const regions = [...new Set(priceZonesList().map(z => z.region))];
+  rsel.innerHTML = '<option value="">— اختر المنطقة —</option>' + regions.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join('');
+  if (cur) rsel.value = cur;
+  fillZoneDistricts();
+}
+function fillZoneDistricts() {
+  const dsel = $('cZoneDistrict'); if (!dsel) return;
+  const region = $('cZoneRegion') ? $('cZoneRegion').value : '';
+  const list = priceZonesList().filter(z => z.region === region);
+  dsel.innerHTML = '<option value="">— اختر الحي —</option>' + list.map(z => `<option value="${esc(z.key)}">${esc(z.name)} — ${fmt(z.fee)} ج.م</option>`).join('');
+}
+function onZoneRegionChange() { selectedZone = null; fillZoneDistricts(); renderCartItems(); }
+function onZoneDistrictChange() {
+  const key = $('cZoneDistrict').value;
+  selectedZone = priceZonesList().find(z => z.key === key) || null;
+  renderCartItems();
+}
+function effectiveFee(distanceKm) { return selectedZone ? num(selectedZone.fee) : deliveryFee(distanceKm); }
 
 /* ── Starter catalog (shown as preview until products are published) ── */
 const STARTER_PRODUCTS = [
@@ -453,14 +487,15 @@ function renderCartItems() {
       <div><div class="ci-name">${esc(i.name)}</div><div class="ci-price">${fmt(i.price)} ج.م × ${i.qty} = ${fmt(i.price * i.qty)} ج.م</div></div>
       <div class="stepper"><button onclick="chgQty('${id}',-1)">−</button><span class="q">${i.qty}</span><button onclick="chgQty('${id}',1)">+</button></div>
     </div>`).join('') : '<div class="empty-note">السلة فاضية.</div>';
-  const fee = deliveryFee(currentDistance());
+  const fee = effectiveFee(currentDistance());
   const total = cartTotal();
   $('totalsBox').innerHTML = `
     <div class="row"><span>إجمالي الأصناف</span><b>${fmt(total)} ج.م</b></div>
-    <div class="row"><span>رسوم التوصيل ${dropCoords ? '(مسافة ' + currentDistance().toFixed(1) + ' كم)' : '(بالحد الأدنى — حدّد نقطة التسليم على الخريطة للدقة)'}</span><b>${fmt(fee)} ج.م</b></div>
+    <div class="row"><span>رسوم التوصيل ${selectedZone ? '(منطقة ' + esc(selectedZone.name) + ' — لائحة الأسعار)' : (dropCoords ? '(مسافة ' + currentDistance().toFixed(1) + ' كم)' : '(بالحد الأدنى — حدّد نقطة التسليم على الخريطة للدقة)')}</span><b>${fmt(fee)} ج.م</b></div>
     <div class="row grand"><span>الإجمالي — يُدفع كاش عند الاستلام</span><span>${fmt(total + fee)} ج.م</span></div>`;
 }
 function openCart() {
+  fillZoneRegions();
   renderCartItems();
   $('cartOverlay').classList.add('show');
   setTimeout(initDropMap, 80);
@@ -593,6 +628,8 @@ function buildOrderPayload(o) {
     itemsSummary: o.items.map(i => i.qty + '× ' + i.name).join('، '),
     notes: o.notes || null,
     source: 'website',
+    stepsV: 3,
+    ...(o.zoneRec ? { zone: o.zoneRec.name, zoneRegion: o.zoneRec.region, zoneFee: num(o.zoneRec.fee) } : {}),
     status: 'available',
     prepStatus: 'preparing',
     branchId: S.branchId || null,
@@ -626,7 +663,7 @@ async function placeOrder() {
   btn.disabled = true; btn.textContent = '⏳ جارٍ إرسال الطلب للمطعم…';
   try {
     const distanceKm = currentDistance();
-    const fee = deliveryFee(distanceKm);
+    const fee = effectiveFee(distanceKm);
     const queue = await buildDispatchQueue({ lat: num(S.storeLat), lng: num(S.storeLng) });
     const details = addr.value.trim();
     const finalAddress = dropCoords && geoText ? (details ? geoText + ' — ' + details : geoText) : details;
@@ -634,6 +671,7 @@ async function placeOrder() {
       name: name.value.trim(), phone: phone.value.trim(), address: finalAddress,
       notes: $('cNotes').value.trim(), items, itemsTotal: cartTotal(),
       fee, distanceKm, dropCoords, queue,
+      zoneRec: selectedZone,
     });
     const ref = db.ref('orders').push();
     await ref.set(payload);
@@ -812,15 +850,13 @@ function applySettings() {
 }
 async function saveSettings() {
   if (!db) { toast('لا يوجد اتصال بالقاعدة'); return; }
+  // اسم المطعم وعنوانه وموقعه يُعدَّل من لوحة التحكم فقط (قسم «موقع المطعم»).
+  // الحفظ من هنا للرسوم فقط، وبـ update حتى لا يمس أي حقل آخر إطلاقاً.
   const data = {
-    storeName: $('sName').value.trim() || DEFAULT_SETTINGS.storeName,
-    storeAddress: $('sAddress').value.trim() || DEFAULT_SETTINGS.storeAddress,
-    storeLat: num($('sLat').value) || DEFAULT_SETTINGS.storeLat,
-    storeLng: num($('sLng').value) || DEFAULT_SETTINGS.storeLng,
     baseFee: num($('sBase').value), perKm: num($('sPerKm').value), minFee: num($('sMin').value),
     updatedAt: nowISO(),
   };
-  try { await db.ref('storefront/settings').set(data); toast('✅ اتحفظت الإعدادات'); }
+  try { await db.ref('storefront/settings').update(data); toast('✅ اتحفظت رسوم التوصيل'); }
   catch (e) { toast('فشل الحفظ: ' + e.message); }
 }
 
@@ -828,6 +864,7 @@ async function saveSettings() {
 function setConn(ok, txt) { $('connDot').className = 'conn-dot ' + (ok ? 'ok' : 'bad'); $('connTxt').textContent = txt; }
 if (db) {
   db.ref('.info/connected').on('value', s => setConn(!!s.val(), s.val() ? 'متصل — الطلبات بتوصل للسائقين لحظيًا' : 'انقطع الاتصال…'));
+  db.ref('settings/zones').on('value', snap => { priceZonesMap = snap.val() || null; fillZoneRegions(); });
   db.ref('storefront/settings').on('value', snap => {
     if (snap.val()) S = { ...DEFAULT_SETTINGS, ...snap.val() };
     applySettings(); fillSettingsForm();
@@ -852,4 +889,3 @@ applySettings(); fillSettingsForm(); renderCatalog(); renderCartBar();
 </script>
 </body>
 </html>
-
