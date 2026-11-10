@@ -304,8 +304,7 @@ td img{width:44px;height:44px;border-radius:10px;object-fit:cover;background:#22
       <div class="geo-hint" id="geoHint">دوس على الخريطة أو حرّك الدبوس لمكان التسليم بالظبط، أو استخدم زرار الـ GPS. رسوم التوصيل بتتحسب من النقطة دي.</div>
     </div>
     <button class="loc-btn" id="locBtn" type="button" onclick="useMyLocation()">📍 حدّد موقعي الحالي (GPS)</button>
-    <div class="field" style="margin-top:12px"><label>منطقة التوصيل (بتحدد رسوم التوصيل من لائحة الأسعار)</label><select id="cZoneRegion" onchange="onZoneRegionChange()"><option value="">— اختر المنطقة —</option></select></div>
-    <div class="field" style="margin-top:12px"><label>الحي / الشارع</label><select id="cZoneDistrict" onchange="onZoneDistrictChange()"><option value="">— اختر الحي —</option></select></div>
+    <div class="field" style="margin-top:12px"><label>منطقة التوصيل (بتتحدد تلقائياً من مكانك على الخريطة)</label><div id="zoneAutoInfo" style="border:1.5px dashed #c9c2e8;border-radius:12px;padding:11px 12px;font-size:13.5px;line-height:1.7;background:#f6f4fd;color:#3d3663">حدّد نقطة التسليم على الخريطة أو فعّل GPS وهنعرف منطقتك وسعر التوصيل لوحدنا.</div></div>
     <div class="field" style="margin-top:12px"><label>تفاصيل العنوان (عمارة، دور، علامة مميزة)</label><textarea id="cAddress" rows="2" placeholder="مثال: عمارة 5، الدور الثالث، بجوار مسجد…"></textarea></div>
     <div class="field" style="margin-top:12px"><label>ملاحظات (اختياري)</label><input id="cNotes" type="text" placeholder="أي تفاصيل إضافية للسائق"></div>
 
@@ -362,35 +361,60 @@ function deliveryFee(distanceKm) {
 }
 
 /* ── Zone price list (owner's list — settings/zones, dashboard-managed) ── */
-const DEFAULT_PRICE_ZONES=[{key:'z01',region:'مدينة نصر',name:'امتداد رمسيس',fee:74},{key:'z02',region:'مدينة نصر',name:'الحي السادس',fee:74},{key:'z03',region:'مدينة نصر',name:'الحي السابع',fee:74},{key:'z04',region:'مدينة نصر',name:'الحي الثامن',fee:74},{key:'z05',region:'مدينة نصر',name:'مساكن الشروق',fee:74},{key:'z06',region:'مدينة نصر',name:'شارع الطاقة',fee:74},{key:'z07',region:'مدينة نصر',name:'الحديقة الدولية',fee:74},{key:'z08',region:'مدينة نصر',name:'شارع حسن الشريف',fee:74},{key:'z09',region:'مدينة نصر',name:'احمد فخري',fee:61},{key:'z10',region:'مدينة نصر',name:'حسن المامون',fee:61},{key:'z11',region:'مدينة نصر',name:'عمار ابن ياسر',fee:61},{key:'z12',region:'مدينة نصر',name:'عمارات الزهور صلاح سالم',fee:61},{key:'z13',region:'مدينة نصر',name:'ابوداود الظاهري',fee:61},{key:'z14',region:'مدينة نصر',name:'حسن مأمون',fee:61},{key:'z15',region:'مدينة نصر',name:'النادي الاهلي',fee:61},{key:'z16',region:'مدينة نصر',name:'شارع الازهر',fee:61},{key:'z17',region:'مدينة نصر',name:'طريق النصر',fee:61},{key:'z18',region:'مدينة نصر',name:'عمارات شراره',fee:55},{key:'z19',region:'مدينة نصر',name:'مشروع 27 عماره',fee:55},{key:'z20',region:'مدينة نصر',name:'مشروع 33 عماره',fee:55},{key:'z21',region:'مدينة نصر',name:'شارع الطيران',fee:55},{key:'z22',region:'مدينة نصر',name:'عباس العقاد',fee:55},{key:'z23',region:'مدينة نصر',name:'مكرم عبيد',fee:55},{key:'z24',region:'مدينة نصر',name:'مصطفى النحاس',fee:55},{key:'z25',region:'مدينة نصر',name:'عمارات العبور',fee:55},{key:'z26',region:'مدينة نصر',name:'شارع عبد المنعم حافظ',fee:48},{key:'z27',region:'مدينة نصر',name:'عمارات رابعة الاستثماري',fee:48},{key:'z28',region:'مدينة نصر',name:'شارع لوساكة',fee:48},{key:'z29',region:'مدينة نصر',name:'شارع محمد غنيم',fee:48},{key:'z30',region:'مدينة نصر',name:'الحي الاول',fee:48},{key:'z31',region:'مدينة نصر',name:'شارع هارون الرشيدي',fee:48},{key:'z32',region:'مدينة نصر',name:'شارع علي الجندي',fee:43},{key:'z33',region:'مدينة نصر',name:'سيتي ستارز',fee:43},{key:'z34',region:'مدينة نصر',name:'شارع نبيل الوقاد',fee:43},{key:'z35',region:'مصر الجديده',name:'الشيراتون',fee:74},{key:'z36',region:'مصر الجديده',name:'النزهة الجديده',fee:74},{key:'z37',region:'مصر الجديده',name:'المطار',fee:74},{key:'z38',region:'مصر الجديده',name:'الخليفة المأمون',fee:61},{key:'z39',region:'مصر الجديده',name:'شارع عبدالعزيز فهمي',fee:61},{key:'z40',region:'مصر الجديده',name:'شارع فريد سميكة',fee:61},{key:'z41',region:'مصر الجديده',name:'نادي الشمس',fee:61},{key:'z42',region:'مصر الجديده',name:'الف مسكن',fee:61},{key:'z43',region:'مصر الجديده',name:'عبد الحميد بدوي',fee:61},{key:'z44',region:'مصر الجديده',name:'شارع عثمان ابن عفان',fee:55},{key:'z45',region:'مصر الجديده',name:'ميدان تريومف',fee:55},{key:'z46',region:'مصر الجديده',name:'ميدان المحكمة',fee:55},{key:'z47',region:'مصر الجديده',name:'شارع الحجاز من المحكمة الى ش عبدالحميد بدوي',fee:55},{key:'z48',region:'مصر الجديده',name:'ميدان سانت فاتيما',fee:55},{key:'z49',region:'مصر الجديده',name:'ميدان الحجاز',fee:55},{key:'z50',region:'مصر الجديده',name:'شارع النزهة بداية من تريومف',fee:55},{key:'z51',region:'مصر الجديده',name:'شارع النخلة المطيعي',fee:48},{key:'z52',region:'مصر الجديده',name:'الميريلاند',fee:48},{key:'z53',region:'مصر الجديده',name:'نادي الجلاء',fee:48},{key:'z54',region:'مصر الجديده',name:'شارع محمد فريد',fee:48},{key:'z55',region:'مصر الجديده',name:'الجلاء العسكري ونادي الجلاء',fee:48},{key:'z56',region:'مصر الجديده',name:'عمر ابن الخطاب',fee:48},{key:'z57',region:'مصر الجديده',name:'شارع ابو بكر الصديق من سفير الى المحكمة',fee:48},{key:'z58',region:'مصر الجديده',name:'روكسي',fee:48},{key:'z59',region:'مصر الجديده',name:'هيليوبوليس',fee:48},{key:'z60',region:'مصر الجديده',name:'ميدان الاسماعيلية',fee:48},{key:'z61',region:'مصر الجديده',name:'ميدان سفير',fee:43},{key:'z62',region:'مصر الجديده',name:'الميرغني',fee:43},{key:'z63',region:'مصر الجديده',name:'السبع عمارات',fee:43},{key:'z64',region:'مصر الجديده',name:'شارع العاظه',fee:43},{key:'z65',region:'مصر الجديده',name:'مشروع كليه البنات',fee:43},{key:'z66',region:'مصر الجديده',name:'ارض الجولف',fee:43}];
+const DEFAULT_PRICE_ZONES=[{key:'z01',region:'مدينة نصر',name:'امتداد رمسيس',fee:74,lat:30.065199,lng:31.296399},{key:'z02',region:'مدينة نصر',name:'الحي السادس',fee:74,lat:30.062,lng:31.35},{key:'z03',region:'مدينة نصر',name:'الحي السابع',fee:74,lat:30.052164,lng:31.32705},{key:'z04',region:'مدينة نصر',name:'الحي الثامن',fee:74,lat:30.055335,lng:31.357639},{key:'z05',region:'مدينة نصر',name:'مساكن الشروق',fee:74,lat:30.069955,lng:31.365736},{key:'z06',region:'مدينة نصر',name:'شارع الطاقة',fee:74,lat:30.066396,lng:31.36017},{key:'z07',region:'مدينة نصر',name:'الحديقة الدولية',fee:74,lat:30.0615,lng:31.3385},{key:'z08',region:'مدينة نصر',name:'شارع حسن الشريف',fee:74,lat:30.050991,lng:31.356757},{key:'z09',region:'مدينة نصر',name:'احمد فخري',fee:61,lat:30.065221,lng:31.349303},{key:'z10',region:'مدينة نصر',name:'حسن المامون',fee:61,lat:30.064179,lng:31.358126},{key:'z11',region:'مدينة نصر',name:'عمار ابن ياسر',fee:61,lat:30.0635,lng:31.352},{key:'z12',region:'مدينة نصر',name:'عمارات الزهور صلاح سالم',fee:61,lat:30.062,lng:31.315},{key:'z13',region:'مدينة نصر',name:'ابوداود الظاهري',fee:61,lat:30.066,lng:31.347},{key:'z14',region:'مدينة نصر',name:'حسن مأمون',fee:61,lat:30.064179,lng:31.358126},{key:'z15',region:'مدينة نصر',name:'النادي الاهلي',fee:61,lat:30.071276,lng:31.357619},{key:'z16',region:'مدينة نصر',name:'شارع الازهر',fee:61,lat:30.058,lng:31.313},{key:'z17',region:'مدينة نصر',name:'طريق النصر',fee:61,lat:30.06876,lng:31.339036},{key:'z18',region:'مدينة نصر',name:'عمارات شراره',fee:55,lat:30.06,lng:31.35},{key:'z19',region:'مدينة نصر',name:'مشروع 27 عماره',fee:55,lat:30.057,lng:31.36},{key:'z20',region:'مدينة نصر',name:'مشروع 33 عماره',fee:55,lat:30.059,lng:31.363},{key:'z21',region:'مدينة نصر',name:'شارع الطيران',fee:55,lat:30.053456,lng:31.326899},{key:'z22',region:'مدينة نصر',name:'عباس العقاد',fee:55,lat:30.0595,lng:31.3383},{key:'z23',region:'مدينة نصر',name:'مكرم عبيد',fee:55,lat:30.064144,lng:31.344498},{key:'z24',region:'مدينة نصر',name:'مصطفى النحاس',fee:55,lat:30.054467,lng:31.343618},{key:'z25',region:'مدينة نصر',name:'عمارات العبور',fee:55,lat:30.068,lng:31.312},{key:'z26',region:'مدينة نصر',name:'شارع عبد المنعم حافظ',fee:48,lat:30.078,lng:31.336},{key:'z27',region:'مدينة نصر',name:'عمارات رابعة الاستثماري',fee:48,lat:30.065,lng:31.322},{key:'z28',region:'مدينة نصر',name:'شارع لوساكة',fee:48,lat:30.066,lng:31.355},{key:'z29',region:'مدينة نصر',name:'شارع محمد غنيم',fee:48,lat:30.082853,lng:31.325073},{key:'z30',region:'مدينة نصر',name:'الحي الاول',fee:48,lat:30.06,lng:31.305},{key:'z31',region:'مدينة نصر',name:'شارع هارون الرشيدي',fee:48,lat:30.0958,lng:31.3305},{key:'z32',region:'مدينة نصر',name:'شارع علي الجندي',fee:43,lat:30.066652,lng:31.353148},{key:'z33',region:'مدينة نصر',name:'سيتي ستارز',fee:43,lat:30.073268,lng:31.345869},{key:'z34',region:'مدينة نصر',name:'شارع نبيل الوقاد',fee:43,lat:30.080949,lng:31.333444},{key:'z35',region:'مصر الجديده',name:'الشيراتون',fee:74,lat:30.104,lng:31.374},{key:'z36',region:'مصر الجديده',name:'النزهة الجديده',fee:74,lat:30.103,lng:31.355},{key:'z37',region:'مصر الجديده',name:'المطار',fee:74,lat:30.118,lng:31.4},{key:'z38',region:'مصر الجديده',name:'الخليفة المأمون',fee:61,lat:30.089,lng:31.329},{key:'z39',region:'مصر الجديده',name:'شارع عبدالعزيز فهمي',fee:61,lat:30.098,lng:31.34},{key:'z40',region:'مصر الجديده',name:'شارع فريد سميكة',fee:61,lat:30.104,lng:31.347},{key:'z41',region:'مصر الجديده',name:'نادي الشمس',fee:61,lat:30.107,lng:31.347},{key:'z42',region:'مصر الجديده',name:'الف مسكن',fee:61,lat:30.106,lng:31.339},{key:'z43',region:'مصر الجديده',name:'عبد الحميد بدوي',fee:61,lat:30.11,lng:31.352},{key:'z44',region:'مصر الجديده',name:'شارع عثمان ابن عفان',fee:55,lat:30.096,lng:31.333},{key:'z45',region:'مصر الجديده',name:'ميدان تريومف',fee:55,lat:30.097,lng:31.3315},{key:'z46',region:'مصر الجديده',name:'ميدان المحكمة',fee:55,lat:30.1025,lng:31.336},{key:'z47',region:'مصر الجديده',name:'شارع الحجاز من المحكمة الى ش عبدالحميد بدوي',fee:55,lat:30.107,lng:31.341},{key:'z48',region:'مصر الجديده',name:'ميدان سانت فاتيما',fee:55,lat:30.1005,lng:31.3385},{key:'z49',region:'مصر الجديده',name:'ميدان الحجاز',fee:55,lat:30.1045,lng:31.338},{key:'z50',region:'مصر الجديده',name:'شارع النزهة بداية من تريومف',fee:55,lat:30.099,lng:31.334},{key:'z51',region:'مصر الجديده',name:'شارع النخلة المطيعي',fee:48,lat:30.091,lng:31.326},{key:'z52',region:'مصر الجديده',name:'الميريلاند',fee:48,lat:30.093,lng:31.3235},{key:'z53',region:'مصر الجديده',name:'نادي الجلاء',fee:48,lat:30.0995,lng:31.331},{key:'z54',region:'مصر الجديده',name:'شارع محمد فريد',fee:48,lat:30.0945,lng:31.3285},{key:'z55',region:'مصر الجديده',name:'الجلاء العسكري ونادي الجلاء',fee:48,lat:30.1005,lng:31.3295},{key:'z56',region:'مصر الجديده',name:'عمر ابن الخطاب',fee:48,lat:30.086,lng:31.331},{key:'z57',region:'مصر الجديده',name:'شارع ابو بكر الصديق من سفير الى المحكمة',fee:48,lat:30.0985,lng:31.3355},{key:'z58',region:'مصر الجديده',name:'روكسي',fee:48,lat:30.0917,lng:31.3264},{key:'z59',region:'مصر الجديده',name:'هيليوبوليس',fee:48,lat:30.091,lng:31.324},{key:'z60',region:'مصر الجديده',name:'ميدان الاسماعيلية',fee:48,lat:30.094,lng:31.3205},{key:'z61',region:'مصر الجديده',name:'ميدان سفير',fee:43,lat:30.0925,lng:31.3365},{key:'z62',region:'مصر الجديده',name:'الميرغني',fee:43,lat:30.088,lng:31.333},{key:'z63',region:'مصر الجديده',name:'السبع عمارات',fee:43,lat:30.0855,lng:31.335},{key:'z64',region:'مصر الجديده',name:'شارع العاظه',fee:43,lat:30.087,lng:31.337},{key:'z65',region:'مصر الجديده',name:'مشروع كليه البنات',fee:43,lat:30.089,lng:31.339},{key:'z66',region:'مصر الجديده',name:'ارض الجولف',fee:43,lat:30.083,lng:31.332}];
 let priceZonesMap = null;
 function priceZonesList() {
   if (priceZonesMap && Object.keys(priceZonesMap).length) {
-    return Object.entries(priceZonesMap).map(([key, z]) => ({ key, region: (z && z.region) || '', name: (z && z.name) || '', fee: num(z && z.fee) })).filter(z => z.name);
+    return Object.entries(priceZonesMap).map(([key, z]) => ({ key, region: (z && z.region) || '', name: (z && z.name) || '', fee: num(z && z.fee), lat: num(z && z.lat) || null, lng: num(z && z.lng) || null })).filter(z => z.name);
   }
   return DEFAULT_PRICE_ZONES.slice();
 }
 let selectedZone = null;
-function fillZoneRegions() {
-  const rsel = $('cZoneRegion'); if (!rsel) return;
-  const cur = rsel.value;
-  const regions = [...new Set(priceZonesList().map(z => z.region))];
-  rsel.innerHTML = '<option value="">— اختر المنطقة —</option>' + regions.map(r => `<option value="${esc(r)}">${esc(r)}</option>`).join('');
-  if (cur) rsel.value = cur;
-  fillZoneDistricts();
+/* ZONE-DETECT-BEGIN — المنطقة تتحدد تلقائياً من نقطة التسليم:
+   ١) عنوان النقطة المعكوس (شارع/حي) يسمّي المنطقة — بفحص مسافة،
+   ٢) وإلا أقرب مركز منطقة في حدود ZONE_RADIUS_KM،
+   ٣) وإلا لا منطقة → تسعير المسافة. */
+const ZONE_RADIUS_KM = 2, ZONE_TEXT_RADIUS_KM = 3.5;
+function zoneNameTokens(z) {
+  const toks = new Set();
+  const full = (z.name || '').trim();
+  if (full) toks.add(full);
+  const bare = full.replace(/^(شارع|ميدان|حي|مشروع|عمارات|مساكن)\s+/, '').trim();
+  if (bare) toks.add(bare);
+  const words = bare.split(/\s+/).filter(Boolean);
+  if (words.length === 2) toks.add(words[1]);
+  return [...toks].filter(t => t.length >= 4);
 }
-function fillZoneDistricts() {
-  const dsel = $('cZoneDistrict'); if (!dsel) return;
-  const region = $('cZoneRegion') ? $('cZoneRegion').value : '';
-  const list = priceZonesList().filter(z => z.region === region);
-  dsel.innerHTML = '<option value="">— اختر الحي —</option>' + list.map(z => `<option value="${esc(z.key)}">${esc(z.name)} — ${fmt(z.fee)} ج.م</option>`).join('');
+function detectZone(lat, lng, addressText) {
+  const list = priceZonesList().filter(z => z.lat && z.lng);
+  if (!list.length) return null;
+  if (addressText) {
+    let best = null, bestLen = 0;
+    for (const z of list) {
+      if (haversine(lat, lng, z.lat, z.lng) > ZONE_TEXT_RADIUS_KM) continue;
+      for (const t of zoneNameTokens(z)) {
+        if (addressText.includes(t) && t.length > bestLen) { best = z; bestLen = t.length; }
+      }
+    }
+    if (best) return best;
+  }
+  let best = null, bestD = Infinity;
+  for (const z of list) {
+    const d = haversine(lat, lng, z.lat, z.lng);
+    if (d < bestD) { bestD = d; best = z; }
+  }
+  return bestD <= ZONE_RADIUS_KM ? best : null;
 }
-function onZoneRegionChange() { selectedZone = null; fillZoneDistricts(); renderCartItems(); }
-function onZoneDistrictChange() {
-  const key = $('cZoneDistrict').value;
-  selectedZone = priceZonesList().find(z => z.key === key) || null;
-  renderCartItems();
+function refreshZoneDetection() {
+  selectedZone = dropCoords ? detectZone(dropCoords.lat, dropCoords.lng, geoText) : null;
+  const box = $('zoneAutoInfo');
+  if (box) {
+    if (selectedZone) box.innerHTML = '📍 منطقتك: <b>' + esc(selectedZone.region) + ' — ' + esc(selectedZone.name) + '</b> · رسوم التوصيل <b>' + fmt(selectedZone.fee) + ' ج.م</b> (اتحددت تلقائياً من مكانك على الخريطة)';
+    else if (dropCoords) box.innerHTML = 'موقعك برّه مناطق لائحة الأسعار — رسوم التوصيل هتتحسب بالمسافة من المطعم.';
+    else box.innerHTML = 'حدّد نقطة التسليم على الخريطة أو فعّل GPS وهنعرف منطقتك وسعر التوصيل لوحدنا.';
+  }
 }
+/* ZONE-DETECT-END */
 function effectiveFee(distanceKm) { return selectedZone ? num(selectedZone.fee) : deliveryFee(distanceKm); }
 
 /* ── Starter catalog (shown as preview until products are published) ── */
@@ -491,11 +515,11 @@ function renderCartItems() {
   const total = cartTotal();
   $('totalsBox').innerHTML = `
     <div class="row"><span>إجمالي الأصناف</span><b>${fmt(total)} ج.م</b></div>
-    <div class="row"><span>رسوم التوصيل ${selectedZone ? '(منطقة ' + esc(selectedZone.name) + ' — لائحة الأسعار)' : (dropCoords ? '(مسافة ' + currentDistance().toFixed(1) + ' كم)' : '(بالحد الأدنى — حدّد نقطة التسليم على الخريطة للدقة)')}</span><b>${fmt(fee)} ج.م</b></div>
+    <div class="row"><span>رسوم التوصيل ${selectedZone ? '(منطقة ' + esc(selectedZone.name) + ' — اتحددت من موقعك على الخريطة)' : (dropCoords ? '(مسافة ' + currentDistance().toFixed(1) + ' كم)' : '(بالحد الأدنى — حدّد نقطة التسليم على الخريطة للدقة)')}</span><b>${fmt(fee)} ج.م</b></div>
     <div class="row grand"><span>الإجمالي — يُدفع كاش عند الاستلام</span><span>${fmt(total + fee)} ج.م</span></div>`;
 }
 function openCart() {
-  fillZoneRegions();
+  refreshZoneDetection();
   renderCartItems();
   $('cartOverlay').classList.add('show');
   setTimeout(initDropMap, 80);
@@ -523,6 +547,7 @@ function setDropPoint(lat, lng) {
     } catch (_) { /* خط المسار تجميلي فقط */ }
   }
   $('geoHint').innerHTML = '✅ <b>نقطة التسليم اتحددت</b> — المسافة من المطعم ' + currentDistance().toFixed(1) + ' كم. جارٍ جلب العنوان…';
+  refreshZoneDetection();
   renderCartItems();
   reverseGeocode(lat, lng);
 }
@@ -536,6 +561,8 @@ async function reverseGeocode(lat, lng) {
     const parts = [a.road, a.neighbourhood || a.suburb || a.quarter, a.city || a.town || a.village || a.state].filter(Boolean);
     geoText = parts.length ? [...new Set(parts)].join('، ') : (j.display_name || '').split('،').slice(0, 3).join('،');
     if (geoText) $('geoHint').innerHTML = '✅ <b>نقطة التسليم اتحددت</b> — ' + esc(geoText) + ' · المسافة ' + currentDistance().toFixed(1) + ' كم';
+    refreshZoneDetection();
+    renderCartItems();
   } catch (_) { /* العنوان النصي يكفي */ }
 }
 function initDropMap() {
@@ -864,7 +891,7 @@ async function saveSettings() {
 function setConn(ok, txt) { $('connDot').className = 'conn-dot ' + (ok ? 'ok' : 'bad'); $('connTxt').textContent = txt; }
 if (db) {
   db.ref('.info/connected').on('value', s => setConn(!!s.val(), s.val() ? 'متصل — الطلبات بتوصل للسائقين لحظيًا' : 'انقطع الاتصال…'));
-  db.ref('settings/zones').on('value', snap => { priceZonesMap = snap.val() || null; fillZoneRegions(); });
+  db.ref('settings/zones').on('value', snap => { priceZonesMap = snap.val() || null; refreshZoneDetection(); renderCartItems(); });
   db.ref('storefront/settings').on('value', snap => {
     if (snap.val()) S = { ...DEFAULT_SETTINGS, ...snap.val() };
     applySettings(); fillSettingsForm();
